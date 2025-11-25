@@ -1,25 +1,30 @@
-# Step 1: Build the app using Maven
-FROM eclipse-temurin:25-jdk AS build
+name: Java CI and Deploy to Render
 
-# Install Maven manually
-ARG MAVEN_VERSION=3.9.9
-RUN apt-get update && apt-get install -y curl tar && \
-    curl -fsSL https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz -o maven.tar.gz && \
-    tar -xzf maven.tar.gz -C /opt && \
-    ln -s /opt/apache-maven-${MAVEN_VERSION} /opt/maven && \
-    rm maven.tar.gz
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
 
-ENV MAVEN_HOME=/opt/maven
-ENV PATH=$PATH:/opt/maven/bin
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
 
-WORKDIR /app
-COPY pom.xml .
-COPY src ./src
-RUN mvn clean package -DskipTests
+    steps:
+      # Step 1: Checkout the repository
+      - uses: actions/checkout@v3
 
-# Step 2: Create a lightweight runtime image
-FROM eclipse-temurin:25-jdk
-WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
-EXPOSE 8080
-CMD ["java", "-jar", "app.jar"]
+      # Step 2: Set up Java
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      # Step 3: Build the project with Maven, skipping tests
+      - name: Build with Maven
+        run: mvn clean package -DskipTests
+
+      # Step 4: Build Docker image from Dockerfile
+      - name: Build Docker image
+        run: docker build -t my-app .
