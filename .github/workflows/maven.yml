@@ -1,61 +1,25 @@
-name: Java CI & Deploy to Render
+# Step 1: Build the app using Maven
+FROM eclipse-temurin:25-jdk AS build
 
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+# Install Maven manually
+ARG MAVEN_VERSION=3.9.9
+RUN apt-get update && apt-get install -y curl tar && \
+    curl -fsSL https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz -o maven.tar.gz && \
+    tar -xzf maven.tar.gz -C /opt && \
+    ln -s /opt/apache-maven-${MAVEN_VERSION} /opt/maven && \
+    rm maven.tar.gz
 
-permissions:
-  contents: read
-  id-token: write
-  actions: read
-  security-events: write
+ENV MAVEN_HOME=/opt/maven
+ENV PATH=$PATH:/opt/maven/bin
 
-jobs:
-  build:
+WORKDIR /app
+COPY pom.xml .
+COPY src ./src
+RUN mvn clean package -DskipTests
 
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up JDK 25
-      uses: actions/setup-java@v4
-      with:
-        java-version: '25'
-        distribution: 'temurin'
-        cache: maven
-
-    - name: Build with Maven
-      run: mvn -B package --file pom.xml
-
-    - name: Run tests with H2
-      run: mvn test -Dspring.profiles.active=test
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Docker
-      uses: docker/setup-buildx-action@v2
-
-    - name: Login to Render Docker Registry
-      run: echo ${{ secrets.RENDER_API_KEY }} | docker login registry.render.com -u ${{ secrets.RENDER_API_KEY }} --password-stdin
-
-    - name: Build Docker image
-      run: docker build -t registry.render.com/${{ secrets.RENDER_DB_ID }}/springboot-app:latest .
-
-    - name: Push Docker image to Render registry
-      run: docker push registry.render.com/${{ secrets.RENDER_DB_ID }}/springboot-app:latest
-
-    - name: Trigger Render deployment via API
-      run: |
-        curl -X POST \
-          -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
-          -H "Accept: application/json" \
-          -H "Content-Type: application/json" \
-          https://api.render.com/v1/services/${{ secrets.RENDER_DB_ID }}/deploys \
-          -d '{"clearCache":true}'
+# Step 2: Create a lightweight runtime image
+FROM eclipse-temurin:25-jdk
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+EXPOSE 8080
+CMD ["java", "-jar", "app.jar"]
