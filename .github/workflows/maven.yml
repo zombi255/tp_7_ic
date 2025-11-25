@@ -28,3 +28,8 @@ jobs:
       # Step 4: Build Docker image from Dockerfile
       - name: Build Docker image
         run: docker build -t my-app .
+      - name: Deploy to production
+        uses: johnbeynon/render-deploy-action@v0.0.8
+        with:
+          service-id: ${{ secrets.srv-d4imkqh5pdvs7383j7sg}}
+          api-key: ${{ secrets.rnd_vsgWJKTEpyWNBK1Rn8dcmy33OhU2 }}
