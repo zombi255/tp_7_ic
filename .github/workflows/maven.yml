@@ -33,4 +33,4 @@ jobs:
         uses: johnbeynon/render-deploy-action@v0.0.8
         with:
           service-id: ${{ secrets.srv-d4imkqh5pdvs7383j7sg}}
-          api-key: ${{ secrets.rnd_vsgWJKTEpyWNBK1Rn8dcmy33OhU2 }}
+          api-key: ${{ secrets.rnd_hbdYWVBzbzzJdFzVZNBeVpaD7QWU }}
